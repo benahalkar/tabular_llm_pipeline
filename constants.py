@@ -1,0 +1,9 @@
+# Model Constants
+IGNORE_INDEX = -100
+TABLE_TOKEN_INDEX = -200
+DEFAULT_TABLE_TOKEN = "<table>"
+DEFAULT_TABLE_START_TOKEN = "<tb_start>"
+DEFAULT_TABLE_END_TOKEN = "<tb_end>"
+TABLE_PLACEHOLDER = "<table-placeholder>"
+COL_SEPARATOR = "<*>"
+ROW_SEPARATOR = "<ROW>"
