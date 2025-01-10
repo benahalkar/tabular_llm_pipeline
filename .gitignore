@@ -175,3 +175,4 @@ data/
 depr/
 finetuned_model/
 wandb/
+training_logs/
