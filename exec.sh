@@ -6,7 +6,7 @@ export WANDB_MODE=disabled
     # --deepspeed ./zero2.json \
 
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
-CUDA_LAUNCH_BLOCKING=1 ${PYTHON_PATH} ${FILE_PATH}/train.py \
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
     --model_name_or_path ai21labs/Jamba-tiny-random \
     --data_path ./data \
     --device cuda \
