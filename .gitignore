@@ -177,3 +177,4 @@ finetuned_model/
 wandb/
 training_logs/
 train_.py
+test.py

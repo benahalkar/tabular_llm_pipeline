@@ -235,16 +235,17 @@ class SupervisedDataset(Dataset):
         table_filepath = os.path.join(self.table_foldername, table_filename)
 
         df = pd.read_csv(table_filepath)
-        TABLE = ROW_SEPARATOR.join(df.apply(lambda row: COL_SEPARATOR.join(row.astype(str)), axis=1))
+        # TABLE = ROW_SEPARATOR.join(df.apply(lambda row: COL_SEPARATOR.join(row.astype(str)), axis=1))
                 
-        result = []
-        for index, row in df.iterrows():
-            row_str = f"Row {index + 1}: " + ", ".join([f"Column {col + 1} value: {row[col]}" for i, col in enumerate(df.columns)])
-            result.append(row_str)
+        result = (
+            df.apply(
+                lambda row: ', '.join([f"column {i+1}: {val}" for i, val in enumerate(row)]), axis=1
+            )
+            .reset_index()
+            .apply(lambda x: f"Row {x['index'] + 1} - {x[0]}", axis=1)
+        )
 
-        # Join all rows into a single string
-        final_string = ". ".join(result) + "."
-        print(final_string)
+        TABLE = '. '.join(result) + '.'
 
         conversations = preprocess_prompts(
             conversations=deepcopy(sample["conversations"]),
@@ -342,6 +343,8 @@ def train():
 
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
     print_gpu_memory("Before loading model")
+
+    print("Number of GPUs available", torch.cuda.device_count())
 
     bnb_model_from_pretrained_args = {} 
     if training_args.bits in [4, 8]:
@@ -459,11 +462,11 @@ def train():
     print_gpu_memory("After loading model")
 
 
-    total_params = sum(p.numel() for p in model.parameters())
-    print(total_params, total_params * 4 / (1024 * 1024))
-    dtypes = [p.dtype for p in model.parameters()]
-    print(dtypes)
-    print(set(dtypes))
+    # total_params = sum(p.numel() for p in model.parameters())
+    # print(total_params, total_params * 4 / (1024 * 1024))
+    # dtypes = [p.dtype for p in model.parameters()]
+    # print(dtypes)
+    # print(set(dtypes))
 
     trainer.train()
 

@@ -11,17 +11,17 @@ CUDA_LAUNCH_BLOCKING=1 ${PYTHON_PATH} ${FILE_PATH}/train.py \
     --data_path ./data \
     --device cuda \
     --optim adamw_torch \
-    --bits 8 \
+    --bits 4 \
     --lora_enable True \
-    --lora_r 64 \
+    --lora_r 32 \
     --lora_threshold 6.0 \
     --fp16 True \
     --bf16 False \
     --tf32 False \
     --num_train_epochs 3 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 8 \
-    --gradient_accumulation_steps 1 \
+    --per_device_train_batch_size 2 \
+    --per_device_eval_batch_size 2 \
+    --gradient_accumulation_steps 8 \
     --evaluation_strategy "steps" \
     --eval_steps 100 \
     --save_strategy "steps" \
