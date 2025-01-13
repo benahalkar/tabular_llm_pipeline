@@ -1,14 +1,23 @@
-PYTHON_PATH=`which python`
-FILE_PATH=`pwd`
+#!/bin/bash
+
+VENV_PATH="/home/harshbenahalkar/ra_venv"
+
+
+if ! [ -d $VENV_PATH ]; then
+    echo "Directory does not exist."
+    exit 1
+fi
+
+PYTHON_PATH="$VENV_PATH/bin/" 
+FILE_PATH=$(dirname "$(realpath "$0")")
 
 export WANDB_MODE=disabled
 
     # --deepspeed ./zero2.json \
-
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
-CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
+CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH}python ${FILE_PATH}/train.py \
     --model_name_or_path ai21labs/Jamba-tiny-random \
-    --data_path ./data \
+    --data_path data \
     --device cuda \
     --optim adamw_torch \
     --bits 4 \
@@ -40,3 +49,4 @@ CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/
     --load_best_model_at_end True \
     --report_to wandb
 
+exit 0
