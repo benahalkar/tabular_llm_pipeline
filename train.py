@@ -62,11 +62,18 @@ class CustomTrainingArguments(TrainingArguments):
     report_to: str = None
 
 
+HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def get_filename():
     est_timezone = pytz.timezone('US/Eastern')
     current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M%S")
-    return f"./training_logs/logs_{current_est_time}.txt"
+    
+    log_directory = os.path.join(HOME_DIR, "training_logs")
+
+    if not os.path.exists(log_directory):
+        os.makedirs(log_directory)
+    
+    return os.path.join(log_directory, f"logs_{current_est_time}.txt")
 
 FILENAME = get_filename()
 
@@ -118,7 +125,6 @@ def print_gpu_memory(message):
 
 def just_logging(message):
     with open(FILENAME, "a") as f:
-        print(">>")
         f.write(message + "\n")
         f.close()
 
@@ -214,7 +220,7 @@ class SupervisedDataset(Dataset):
     ):
         
         super(SupervisedDataset, self).__init__()
-        self.dataset_folder = data_args.data_path
+        self.dataset_folder = os.path.join(HOME_DIR, data_args.data_path)
         self.tokenizer = tokenizer
         
         data_folder_name = "train" if train else "eval"
@@ -399,7 +405,7 @@ def train():
 
     extra_tokens = [DEFAULT_TABLE_TOKEN, DEFAULT_TABLE_START_TOKEN, DEFAULT_TABLE_END_TOKEN, TABLE_PLACEHOLDER, COL_SEPARATOR, ROW_SEPARATOR]
     tokenizer.add_special_tokens({'additional_special_tokens': extra_tokens})
-    model.resize_token_embeddings(len(tokenizer))
+    model.resize_token_embeddings(len(tokenizer), mean_resizing=False)
     
 
     if training_args.bits in [4, 8]:
