@@ -2,12 +2,14 @@ import os
 import json
 import pytz
 import torch
+import wandb
 import warnings
 import numpy as np
 import pandas as pd
 from copy import deepcopy
 from datetime import datetime
 from dataclasses import dataclass
+from accelerate import Accelerator
 from torch.utils.data import Dataset
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Sequence, List
@@ -18,6 +20,14 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForCausalLM, BitsAn
 import conversation as conversation_lib
 from constants import IGNORE_INDEX, TABLE_TOKEN_INDEX, DEFAULT_TABLE_TOKEN, DEFAULT_TABLE_START_TOKEN, DEFAULT_TABLE_END_TOKEN, TABLE_PLACEHOLDER, COL_SEPARATOR, ROW_SEPARATOR
 
+accelerator = Accelerator()
+
+local_rank = None
+
+
+def rank0_print(msg):
+    if local_rank == 0:
+        print(msg)
 
 @dataclass
 class CustomModelArguments:
@@ -60,9 +70,14 @@ class CustomTrainingArguments(TrainingArguments):
     lora_weight_path: str = ""
     lora_bias: str = "none"
     report_to: str = None
+    distributed_state: str = field(default=None)
+    deepspeed: str = field(default=None)
 
 
 HOME_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if accelerator.is_main_process:
+    wandb.init(project="finetuning_runs")
 
 def get_filename():
     est_timezone = pytz.timezone('US/Eastern')
@@ -84,13 +99,13 @@ def set_seed(seed=42):
     transformers_set_seed(seed)
     torch.set_printoptions(threshold=float('inf'))
 
-    print(f"Seed set to: {seed}")
+    rank0_print(f"Seed set to: {seed}")
 
 
 
 def print_name_and_size(model):
     for name, param in model.named_parameters():
-        print(f"Layer: {name} | Gradient: {param.requires_grad}")
+        rank0_print(f"Layer: {name} | Gradient: {param.requires_grad}")
 
 
 
@@ -343,14 +358,18 @@ def making_data_management_module(
 
 
 def train():
+    global local_rank
+
     parser = HfArgumentParser((CustomModelArguments, CustomDataArguments, CustomTrainingArguments))
 
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    local_rank = training_args.local_rank
+
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
     print_gpu_memory("Before loading model")
 
-    print("Number of GPUs available", torch.cuda.device_count())
+    rank0_print("Number of GPUs available", torch.cuda.device_count())
 
     bnb_model_from_pretrained_args = {} 
     if training_args.bits in [4, 8]:
@@ -358,7 +377,8 @@ def train():
         
         # Set up quantization configuration
         bnb_model_from_pretrained_args.update(dict(
-            device_map={"": training_args.device},
+            # device_map={"": training_args.device},
+            device_map="auto",
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=training_args.bits == 4,
                 llm_int8_threshold=training_args.lora_threshold,
@@ -370,7 +390,7 @@ def train():
             )
         ))
 
-        print("Bits and Bytes config created")
+        rank0_print("Bits and Bytes config created")
 
 
     # Load tokenizer and model
@@ -451,6 +471,7 @@ def train():
         report_to=training_args.report_to,
         gradient_checkpointing=True,
         gradient_checkpointing_kwargs={'use_reentrant': False},
+        deepspeed=training_args.deepspeed
     )
 
     data_module = making_data_management_module(
@@ -467,14 +488,8 @@ def train():
     
     print_gpu_memory("After loading model")
 
-
-    # total_params = sum(p.numel() for p in model.parameters())
-    # print(total_params, total_params * 4 / (1024 * 1024))
-    # dtypes = [p.dtype for p in model.parameters()]
-    # print(dtypes)
-    # print(set(dtypes))
-
     trainer.train()
+
 
 
 if __name__ == "__main__":
