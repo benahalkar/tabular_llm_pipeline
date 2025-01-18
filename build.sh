@@ -36,6 +36,10 @@ pip install -r requirements.txt
 # move out of repository
 cd ..
 
+# Configure accelerate
+echo "Configuring accelerate now"
+accelerate config
+
 # disable virtual environment
 deactivate
 
