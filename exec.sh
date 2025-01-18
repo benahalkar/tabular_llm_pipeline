@@ -1,23 +1,8 @@
 #!/bin/bash
 
-VENV_PATH="/nfshomes/hb2776/ra_venv"
-
-
-if ! [ -d $VENV_PATH ]; then
-    echo "Virtual environment Directory does not exist."
-    exit 1
-fi
-
-PYTHON_PATH="$VENV_PATH/bin/" 
-FILE_PATH=$(dirname "$(realpath "$0")")
-
-# export WANDB_MODE=disabled
-
-source ${VENV_PATH}/bin/activate
-
-# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH}python ${FILE_PATH}/train.py \
+# Launch script
+# CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
-
 CUDA_LAUNCH_BLOCKING=1 accelerate launch ${FILE_PATH}/train.py \
     --deepspeed ${FILE_PATH}/zero2.json \
     --model_name_or_path ai21labs/Jamba-tiny-random \
@@ -53,6 +38,5 @@ CUDA_LAUNCH_BLOCKING=1 accelerate launch ${FILE_PATH}/train.py \
     --load_best_model_at_end True \
     --report_to wandb
 
-deactivate
-
+# STOP
 exit 0
