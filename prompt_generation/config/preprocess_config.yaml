@@ -1,0 +1,21 @@
+data_settings:
+  is_training_encoder: false
+  table_encoder_type: "Transformer"  # Options: MLP, Transformer, PreTrainedTransformer
+  apply_target_mask: true
+  mask_fraction: 0.15
+  causal_metadata_path: "causal_metadata.json"
+  raw_metadata_file: "metadata.json"
+  processed_metadata_file: "processed_metadata.json"
+  max_cols: 101
+  mask_token: "missing"
+  raw_data_path: "./Data/Raw/"
+  processed_data_path: "./Data/Processed/"
+  decimal_value_count: 2
+  max_token_count_per_cell: 10
+  total_context_length: 250000
+
+
+prompt_settings:
+  num_prompts: 5000
+  functions_file: "table_functions"
+  prompts_file_path: "table_prompt.json"
