@@ -1,9 +1,24 @@
 ####################################################################################################################
 ####################################################################################################################
-This file contains instructions on how to generate data, preprocess data and then train the model.
+This file contains instructions on how to clone the repo, build the packages required, generate data, preprocess data and then train the model.
 
-IMPORTANT: STEPS 1 - 8 need to be run only once, and do not need to be repeated for every training run. These steps are for data preparation.
+IMPORTANT: STEPS 0 - 8 need to be run only once, and do not need to be repeated for every training run. These steps are for data preparation.
 ####################################################################################################################
+####################################################################################################################
+
+
+####################################################################################################################
+                                                Repo Cloning
+
+0. Kindly take the build.sh file from the repository. This file automates the process of cloning and downloading all packages inside the repo. 
+   Before starting the process, kindly set you github's api key to os env variable GITHUB_API_KEY otherwise the build will fail. 
+   Once this is done, execute the build.sh file. The file will clone the repository inside the current working directory and build the virtual environment as well.
+   In the middle of the build.sh, is a step for creating the accelerator config. 
+   This step needs to be configured for multi-GPU, FSDP training. 
+   
+   If there are no issues then the bash script will run successfully.
+
+
 ####################################################################################################################
 
 
@@ -59,3 +74,7 @@ The number of prompts has been defined in the preprocess_config file under the "
 
 ####################################################################################################################
                                                 Training
+
+9. This is straightforward. The training configurations have been mentioned in the exec.sh file. Kindly just set the os env variable WANDB_API_KEY to the wandb api key.
+
+10. The SLURM job file is named as slurm.sh. Submitting this job file with the appropriate settings should be sufficient to run the training script. 
