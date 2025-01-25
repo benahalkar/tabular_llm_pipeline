@@ -10,18 +10,8 @@
 #SBATCH --output=logs/%x_%j.out           # Standard output log (%x=job-name, %j=job-id)
 #SBATCH --error=logs/%x_%j.err            # Standard error log
 
-
-
-# get directory of repository
-DIRNAME="tabular_llm_pipeline"
-
-# get virtual environment name 
-VENVNAME="tabular_llm_venv"
-
 # get current directory
-ROOTDIR=FILE_PATH=$(dirname "$(realpath "$0")")
-
-
+ROOTDIR=$(dirname "$(realpath "$0")")
 
 # Load modules or conda environment
 # module load python/3.8
@@ -29,39 +19,9 @@ module load python/3.11
 # module load cuda/11.3
 module load cuda
 
-
-
-# get directory of virtual environment
-VENV_PATH=${ROOTDIR}/${VENVNAME}
-
-
-
-# Ensure the virtual environment exists
-if ! [ -d $VENV_PATH ]; then
-    echo "Virtual environment Directory does not exist."
-    exit 1
-fi
-
-# Ensure WANDB_API_KEY exists
-if [ -z "$WANDB_API_KEY" ]; then
-    echo "Error: WANDB_API_KEY is not set. Please export it before running the script."
-    exit 1
-fi
-
-
-
-# get source python path
-PYTHON_PATH="$VENV_PATH/bin/python" 
-
-# activate virtual environment
-source ${VENV_PATH}/bin/activate
-
 # define the execution script name and execute
-SCRIPT_NAME=${ROOTDIR}/${DIRNAME}/exec.sh
+SCRIPT_NAME=${ROOTDIR}/exec.sh
 /usr/bin/bash ${SCRIPT_NAME}
-
-# disable virtual environment
-deactivate
 
 # STOP
 exit 0
