@@ -406,7 +406,7 @@ def train():
             # config=config,
             use_cache=False,
             attn_implementation=model_args.attn_implementation,
-            # use_mamba_kernels=False  # Disable mamba kernels if you encounter errors
+            use_mamba_kernels=True,  # Disable mamba kernels if you encounter errors
             **bnb_model_from_pretrained_args
         )
 
