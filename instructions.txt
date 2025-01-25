@@ -1,0 +1,61 @@
+####################################################################################################################
+####################################################################################################################
+This file contains instructions on how to generate data, preprocess data and then train the model.
+
+IMPORTANT: STEPS 1 - 8 need to be run only once, and do not need to be repeated for every training run. These steps are for data preparation.
+####################################################################################################################
+####################################################################################################################
+
+
+####################################################################################################################
+                                                Data Generation & Collection
+
+1. The first step is the data generation step. We have three types of data, synthetic data and real world data, and causal synthetic data. To complete this stage, 
+download all the data from the shared data folder, and unzip all the files into the "prompt_generation/Data/Raw" folder. 
+This folder should have individual files, and not zip files.  
+
+The real world data will be in the form of parquet files while the synthetic and causal data will be in the form of CSV files. 
+All of these individual data files need to be stored in the same folder within "prompt_generation" folder as specified in the 
+preprocess_config file under the "raw_data_path". This path will mostly look like: "/Data/Raw" within the "prompt_generation" folder.
+The above path has the raw, unprocessed data.
+
+####################################################################################################################
+
+
+####################################################################################################################
+                                                Data Preprocessing
+
+2. Next, make sure that the "preprocess_config.yaml" file is present in the "config" folder.
+
+3. Once all the data has been generated/obtained, make sure that all the data folders are unzipped. 
+
+4. Navigate into the "prompt_generation" folder.
+
+5. Make sure a file called "causal_metadata.json" is present. This file is required for the next step.
+
+Run the "generate_metadata.py" file using "python generate_metadata.py". 
+This should create a file called "metadata.json".
+
+6. Run the "preprocess_tables.py" file using "python preprocess_tables.py". 
+As the tables are processed, they are stored in the path within the "prompt_generation" folder as specified by the "processed_data_path" from the preprocess_config file.
+Once all the tables are processed, this folder then contains the final processed tables which will be passed to the LLM. This folder will mostly be called "Data/Processed".
+
+6. On completion of the above code, a metadata file will be created as specified in the "processed_metadata_file" tag in the preprocess_config file.
+
+####################################################################################################################
+
+
+####################################################################################################################
+                                                Prompt Generation
+
+7. Once all the above steps are completed, i.e., we have our processed data, and the corresponding metadata file for this processed data, we can move onto the prompt generation for the LLM.
+In the "prompt_generation" folder, run the "generate_prompts.py" file using "python generate_prompts.py".
+The number of prompts has been defined in the preprocess_config file under the "num_prompts" tag. 
+
+8. This will create a new file called "table_prompts.json" which has the final set of prompts which need to be used to train the model.
+
+####################################################################################################################
+
+
+####################################################################################################################
+                                                Training
