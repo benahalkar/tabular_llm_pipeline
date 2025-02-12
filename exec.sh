@@ -30,10 +30,10 @@ source ${VENVROOT}/bin/activate
 # Launch script
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
-CUDA_LAUNCH_BLOCKING=1 accelerate launch ${FILE_PATH}/train.py \
-    --deepspeed ${FILE_PATH}/zero2.json \
-    --model_name_or_path ai21labs/AI21-Jamba-1.5-Mini \
-    --data_path prompt_generation \
+CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
+    --deepspeed ${ROOTDIR}/zero2.json \
+    --model_name_or_path meta-llama/Llama-3.1-8B \
+    --data_path ${ROOTDIR}/prompt_generation \
     --device cuda \
     --optim adamw_8bit \
     --bits 8 \
@@ -68,6 +68,8 @@ CUDA_LAUNCH_BLOCKING=1 accelerate launch ${FILE_PATH}/train.py \
     --load_best_model_at_end True \
     --report_to wandb
 
+    # --model_name_or_path ai21labs/AI21-Jamba-1.5-Mini \
+    # --data_path ${ROOTDIR}/data \
 
 # disable virtual environment
 deactivate
