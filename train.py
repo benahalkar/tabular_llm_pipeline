@@ -24,6 +24,8 @@ accelerator = Accelerator()
 
 local_rank = None
 
+from huggingface_hub import login
+login(token="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")
 
 def rank0_print(msg):
     if local_rank == 0:
@@ -225,6 +227,62 @@ def preprocess_jamba(
     )   
 
 
+
+def preprocess_llama_2(
+    conversations,
+    tokenizer
+):
+    def find_indexes(main_, sub_):
+        main_array = np.array(main_)
+        sub_array = np.array(sub_)
+        window_view = np.lib.stride_tricks.sliding_window_view(main_array, len(sub_array))
+        matches = np.all(window_view == sub_array, axis=1)
+        return np.where(matches)[0]
+
+    conv = tokenizer(conversations).input_ids
+
+    user_command = "[INST] "
+    assistant_command = " </s>"
+
+    user_token = tokenizer.encode(user_command, add_special_tokens=False)
+    user_indices = find_indexes(conv, user_token)
+
+    assistant_token = tokenizer.encode(assistant_command, add_special_tokens=False)
+    assistant_indices = find_indexes(conv, assistant_token) + len(assistant_token)
+
+    assert len(user_indices) == len(assistant_indices), "Conversation is not identical"
+    assert len(user_indices) > 0, "No indices found"
+
+    input_ids = torch.tensor(conv)
+    labels = input_ids.clone()
+
+    first_index = assistant_indices[0]
+    labels[:first_index] = IGNORE_INDEX
+
+    user_indices, assistant_indices = user_indices[1:], assistant_indices[1:]
+
+    for i, j in zip(user_indices, assistant_indices):
+        labels[i:j] = IGNORE_INDEX
+
+    return dict(
+        input_ids=input_ids,
+        labels=labels
+    )
+
+
+def preprocess(
+    conversations,
+    tokenizer 
+):
+    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
+        return preprocess_llama_2(conversations, tokenizer)
+
+    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.SINGLE:
+        return preprocess_jamba(conversations, tokenizer)
+    
+    else:
+        raise ValueError("Unknown conversation type found")
+
 @dataclass
 class SupervisedDataset(Dataset):
     def __init__(
@@ -369,7 +427,7 @@ def train():
     compute_dtype = (torch.float16 if training_args.fp16 else (torch.bfloat16 if training_args.bf16 else torch.float32))
     print_gpu_memory("Before loading model")
 
-    rank0_print("Number of GPUs available", torch.cuda.device_count())
+    rank0_print(f"Number of GPUs available - {torch.cuda.device_count()}")
 
     bnb_model_from_pretrained_args = {} 
     if training_args.bits in [4, 8]:
@@ -419,8 +477,32 @@ def train():
             trust_remote_code=True,
         )
 
+    elif "llama" in model_args.model_name_or_path.lower():
+        from transformers import LlamaForCausalLM, LlamaTokenizer
+
+        config = AutoConfig.from_pretrained(
+            model_args.model_name_or_path
+        )
+
+        model = LlamaForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            trust_remote_code=True,
+            # config=config,
+            use_cache=False,
+            **bnb_model_from_pretrained_args
+        )
+
+        tokenizer = LlamaTokenizer.from_pretrained(
+            model_args.model_name_or_path,
+            legacy=False,
+            cache_dir=None,
+            padding_side="right",
+            use_fast=False,
+            trust_remote_code=True,
+        )
+
     else:
-        raise NotImplementedError(f"Unknown model type '{model_args.model_name_or_path}' found")
+        raise NotImplementedError(f"Unknown model type '{model_args.model_name_or_path}' found for model and tokenizer initialization")
     
 
     extra_tokens = [DEFAULT_TABLE_TOKEN, DEFAULT_TABLE_START_TOKEN, DEFAULT_TABLE_END_TOKEN, TABLE_PLACEHOLDER, COL_SEPARATOR, ROW_SEPARATOR]
@@ -436,14 +518,29 @@ def train():
 
     if training_args.lora_enable:
         from peft import LoraConfig, get_peft_model
-        lora_config = LoraConfig(
-            r=training_args.lora_r,
-            lora_alpha=training_args.lora_alpha,
-            target_modules=["embed_tokens", "x_proj", "in_proj", "out_proj"],
-            lora_dropout=training_args.lora_dropout,
-            bias=training_args.lora_bias,
-            task_type="CAUSAL_LM"
-        )
+
+        if "jamba" in model_args.model_name_or_path.lower():
+            lora_config = LoraConfig(
+                r=training_args.lora_r,
+                lora_alpha=training_args.lora_alpha,
+                target_modules=["embed_tokens", "x_proj", "in_proj", "out_proj"],
+                lora_dropout=training_args.lora_dropout,
+                bias=training_args.lora_bias,
+                task_type="CAUSAL_LM"
+            )
+        
+        elif "llama" in model_args.model_name_or_path.lower():
+            lora_config = LoraConfig(
+                r=training_args.lora_r,
+                lora_alpha=training_args.lora_alpha,
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head"],  # Adjust these!
+                lora_dropout=training_args.lora_dropout,
+                bias=training_args.lora_bias,
+                task_type="CAUSAL_LM"
+            )
+        
+        else:
+            raise NotImplementedError(f"Unknown model type '{model_args.model_name_or_path}' found for lora config")
 
         if training_args.bits == 16:
             if training_args.bf16:
@@ -465,7 +562,7 @@ def train():
         learning_rate=training_args.learning_rate,
         save_strategy=training_args.save_strategy,
         save_steps=training_args.save_steps,
-        evaluation_strategy=training_args.evaluation_strategy,
+        eval_strategy=training_args.evaluation_strategy,
         eval_steps=training_args.eval_steps,
         load_best_model_at_end=training_args.load_best_model_at_end,
         report_to=training_args.report_to,
