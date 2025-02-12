@@ -67,6 +67,36 @@ class Conversation:
 
                 else:
                     ret += role + ":"
+
+        elif self.sep_style == SeparatorStyle.LLAMA_2:
+            # wrap_sys = lambda msg: f"<<SYS>>\n{msg}\n<</SYS>>\n\n" if len(msg) > 0 else msg
+            # wrap_inst = lambda msg: f"[INST] {msg} [/INST]"
+
+            def wrap_inst(msg):
+                return f"[INST] {msg} [/INST]"
+            
+            def wrap_sys(msg):
+                return f"<<SYS>>\n{msg}\n<</SYS>>\n\n" if len(msg) > 0 else msg
+
+            ret = ""
+
+            for i, (role, message) in enumerate(messages):
+                if i == 0:
+                    assert message, "first message should not be none"
+                    assert role == self.roles[0], "first message should come from user"
+                if message:
+                    if type(message) is tuple:
+                        message, _, _ = message
+                    if i == 0: message = wrap_sys(self.system) + message
+                    if i % 2 == 0:
+                        message = wrap_inst(message)
+                        ret += self.sep + message
+                    else:
+                        ret += " " + message + " " + self.sep2
+                else:
+                    ret += ""
+            ret = ret.lstrip(self.sep)
+
         else:
             raise ValueError(f"Invalid style: {self.sep_style}")
         
@@ -85,4 +115,17 @@ jamba = Conversation(
     sep2=None,
 ) 
 
-default_conversation = jamba
+llama_2 = Conversation(
+    system="""You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.""",
+    roles=("USER", "ASSISTANT"),
+    version="llama_v2",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.LLAMA_2,
+    sep="<s>",
+    sep2="</s>",
+)
+
+default_conversation = llama_2
