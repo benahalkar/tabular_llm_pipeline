@@ -7,10 +7,10 @@ DIRNAME="tabular_llm_pipeline"
 VENVNAME="tabular_llm_venv"
 
 # Ensure GITHUB_API_KEY exists
-if [ -z "$GITHUB_API_KEY" ]; then
-    echo "Error: GITHUB_API_KEY is not set. Please export it before running the script."
-    exit 1
-fi
+# if [ -z "$GITHUB_API_KEY" ]; then
+#     echo "Error: GITHUB_API_KEY is not set. Please export it before running the script."
+#     exit 1
+# fi
 
 # Ensure Python 3 is used
 if ! command -v python3 &> /dev/null; then
@@ -19,10 +19,10 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # clone the repository
-git clone https://${GITHUB_KEY}@github.com/benahalkar/tabular_llm_pipeline.git ${DIRNAME}
+# git clone https://${GITHUB_KEY}@github.com/benahalkar/tabular_llm_pipeline.git ${DIRNAME}
 
 # create the virtual environment
-python -m venv ${VENVNAME}
+python3 -m venv ${VENVNAME}
 
 # activate virtual environment
 source ${VENVNAME}/bin/activate
