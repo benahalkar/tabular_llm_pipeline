@@ -8,6 +8,7 @@ class SeparatorStyle(Enum):
     MPT = auto()
     PLAIN = auto()
     LLAMA_2 = auto()
+    LLAMA_3 = auto()
 
 
 @dataclasses.dataclass
@@ -87,7 +88,10 @@ class Conversation:
                 if message:
                     if type(message) is tuple:
                         message, _, _ = message
-                    if i == 0: message = wrap_sys(self.system) + message
+                    
+                    if i == 0: 
+                        message = wrap_sys(self.system) + message
+                    
                     if i % 2 == 0:
                         message = wrap_inst(message)
                         ret += self.sep + message
@@ -96,6 +100,24 @@ class Conversation:
                 else:
                     ret += ""
             ret = ret.lstrip(self.sep)
+
+        elif self.sep_style == SeparatorStyle.LLAMA_3:
+            
+            def wrap_inst(role, msg):
+                return f"<|start_header_id|>{role}<|end_header_id|>{msg}{self.sep}"
+                
+            ret = "<|begin_of_text|>"
+
+            for i, (role, message) in enumerate(messages):
+                if i == 0:
+                    assert message, "first message should not be none"
+                    assert role == self.roles[0], "first message should come from user"
+
+                    ret += wrap_inst("system", self.system)
+
+                ret += wrap_inst(role, message)
+
+            return ret
 
         else:
             raise ValueError(f"Invalid style: {self.sep_style}")
@@ -128,4 +150,17 @@ If a question does not make any sense, or is not factually coherent, explain why
     sep2="</s>",
 )
 
-default_conversation = llama_2
+llama_3 = Conversation(
+    system="""You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
+
+If a question does not make any sense, or is not factually coherent, explain why instead of answering something not correct. If you don't know the answer to a question, please don't share false information.""",
+    roles=("user", "assistant"),
+    version="llama_v3",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.LLAMA_3,
+    sep="<|eot_id|>",
+    sep2=None,
+)
+
+default_conversation = llama_3
