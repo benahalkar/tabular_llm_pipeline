@@ -3,6 +3,9 @@
 # get current directory
 ROOTDIR=$(dirname "$(realpath "$0")")
 
+# enable disable wandb
+online_wandb_enable=0
+
 # get venv name
 VENVNAME="tabular_llm_venv"
 
@@ -15,11 +18,22 @@ if ! [ -d $VENVROOT ]; then
     exit 1
 fi
 
-# Ensure WANDB_API_KEY exists
-if [ -z "$WANDB_API_KEY" ]; then
-    echo "Error: WANDB_API_KEY is not set. Please export it before running the script."
-    exit 1
+
+if [ "$online_wandb_enable" -eq 0 ]; then
+    # disable wandb since it cannot be used on offline systems
+    export WANDB_MODE=disabled
+
+elif [ "$online_wandb_enable" -eq 1 ]; then
+    # Ensure WANDB_API_KEY exists
+    if [ -z "$WANDB_API_KEY" ]; then
+        echo "Error: WANDB_API_KEY is not set. Please export it before running the script."
+        exit 1
+    fi
+
+else
+    echo "The variable is neither 0 nor 1"
 fi
+
 
 # get source python path
 PYTHON_PATH=${VENVROOT}/bin/python 
@@ -32,7 +46,7 @@ source ${VENVROOT}/bin/activate
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
 CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
     --deepspeed ${ROOTDIR}/zero2.json \
-    --model_name_or_path meta-llama/Llama-3.1-8B \
+    --model_name_or_path meta-llama/Llama-3.2-1B \
     --data_path ${ROOTDIR}/prompt_generation \
     --device cuda \
     --optim adamw_8bit \
