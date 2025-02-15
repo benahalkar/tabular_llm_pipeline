@@ -24,9 +24,6 @@ accelerator = Accelerator()
 
 local_rank = None
 
-from huggingface_hub import login
-login(token="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")
-
 def rank0_print(msg):
     if local_rank == 0:
         print(msg)
