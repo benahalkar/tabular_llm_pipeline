@@ -46,7 +46,7 @@ source ${VENVROOT}/bin/activate
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
 CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
     --deepspeed ${ROOTDIR}/zero2.json \
-    --model_name_or_path meta-llama/Llama-3.2-1B \
+    --model_name_or_path meta-llama/Llama-3.2-8B \
     --data_path ${ROOTDIR}/prompt_generation \
     --device cuda \
     --optim adamw_8bit \
@@ -64,7 +64,7 @@ CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 8 \
-    --evaluation_strategy "steps" \
+    --eval_strategy "steps" \
     --eval_steps 100 \
     --save_strategy "steps" \
     --save_steps 100 \
