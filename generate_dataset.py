@@ -59,8 +59,11 @@ def delete_all_contents(folder_path):
         except Exception as e:
             print(f"Failed to delete {file_path}. Reason: {e}")
 
-    os.makedirs(os.path.join(folder_path, "train"))
-    os.makedirs(os.path.join(folder_path, "eval"))
+    first_path = os.path.join(folder_path, "Data") 
+    os.makedirs(first_path)
+
+    second_path = os.path.join(first_path, "Preprocessed")
+    os.makedirs(second_path)
 
 
 def generate_UID():
@@ -146,16 +149,17 @@ if __name__ == "__main__":
 
     delete_all_contents(data_folder)
     
+    folder_name = os.path.join(data_folder, "Data", "Preprocessed")
+    
     train_samples = int(NUM_SAMPLES * TRAIN_TEST_SPLIT)
 
     train_json_filename = "train_config.json"
     train_json_filepath = os.path.join(data_folder, train_json_filename)
-    train_folder_name = os.path.join(data_folder, "train")
 
     if os.path.exists(train_json_filename):
         os.remove(train_json_filename)
     
-    generate_v0(train_json_filepath, train_folder_name, train_samples)
+    generate_v0(train_json_filepath, folder_name, train_samples)
 
     beautify_json(train_json_filepath)
     
@@ -163,12 +167,11 @@ if __name__ == "__main__":
 
     eval_json_filename = "eval_config.json"
     eval_json_filepath = os.path.join(data_folder, eval_json_filename)
-    eval_folder_name = os.path.join(data_folder, "eval")
     
     if os.path.exists(eval_json_filename):
         os.remove(eval_json_filename)
     
-    generate_v0(eval_json_filepath, eval_folder_name, eval_samples)
+    generate_v0(eval_json_filepath, folder_name, eval_samples)
 
     beautify_json(eval_json_filepath)
 
