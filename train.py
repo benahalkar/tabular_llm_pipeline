@@ -298,7 +298,7 @@ class SupervisedDataset(Dataset):
         
         data_folder_name = "train" if train else "eval"
 
-        self.table_foldername = os.path.join(self.dataset_folder, data_folder_name)
+        self.table_foldername = os.path.join(self.dataset_folder, "Data", "Preprocessed")
         self.dataset_config = os.path.join(self.dataset_folder, f"{data_folder_name}_config.json")
         self.dataset = json.load(open(self.dataset_config, "r"))
 
@@ -333,7 +333,7 @@ class SupervisedDataset(Dataset):
         TABLE = DEFAULT_TABLE_START_TOKEN + TABLE + DEFAULT_TABLE_END_TOKEN 
         conversations = conversations.replace(DEFAULT_TABLE_TOKEN, TABLE)
         
-        data_dict = preprocess_jamba(
+        data_dict = preprocess(
             conversations=conversations,
             tokenizer=self.tokenizer 
         )
