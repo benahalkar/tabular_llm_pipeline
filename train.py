@@ -227,17 +227,46 @@ def preprocess_jamba(
     )   
 
 
+def find_indexes(main_, sub_):
+    main_array = np.array(main_)
+    sub_array = np.array(sub_)
+    window_view = np.lib.stride_tricks.sliding_window_view(main_array, len(sub_array))
+    matches = np.all(window_view == sub_array, axis=1)
+    return np.where(matches)[0]
+
+
+def preprocess_llama_3(
+    conversations,
+    tokenizer
+):
+    conv = tokenizer(conversations).input_ids
+    
+    assistant_command = "<|start_header_id|>assistant<|end_header_id|>"
+    assistant_token = tokenizer.encode(assistant_command, add_special_tokens=False)
+    assistant_indices = find_indexes(conv, assistant_token) + len(assistant_token)
+
+    ending_command = "<|eot_id|>"
+    ending_token = tokenizer.encode(ending_command, add_special_tokens=False)
+
+    input_ids = torch.tensor(conv)
+    labels = torch.full(input_ids.shape, fill_value=IGNORE_INDEX)
+
+    for i, start in enumerate(assistant_indices):
+        temp_mask = (input_ids == ending_token[0])
+        temp_mask[:start] = False
+        till = temp_mask.nonzero(as_tuple=True)[0][0].item()
+        labels[start:till] = input_ids[start:till]
+
+    return dict(
+        input_ids=input_ids,
+        labels=labels
+    )
+
 
 def preprocess_llama_2(
     conversations,
     tokenizer
 ):
-    def find_indexes(main_, sub_):
-        main_array = np.array(main_)
-        sub_array = np.array(sub_)
-        window_view = np.lib.stride_tricks.sliding_window_view(main_array, len(sub_array))
-        matches = np.all(window_view == sub_array, axis=1)
-        return np.where(matches)[0]
 
     conv = tokenizer(conversations).input_ids
 
@@ -276,6 +305,9 @@ def preprocess(
 ):
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
         return preprocess_llama_2(conversations, tokenizer)
+    
+    if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_3:
+        return preprocess_llama_3(conversations, tokenizer)
 
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.SINGLE:
         return preprocess_jamba(conversations, tokenizer)
@@ -486,13 +518,12 @@ def train():
 
         model = LlamaForCausalLM.from_pretrained(
             model_args.model_name_or_path,
-            trust_remote_code=True,
             # config=config,
             use_cache=False,
             **bnb_model_from_pretrained_args
         )
 
-        tokenizer = LlamaTokenizer.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
             legacy=False,
             cache_dir=None,
@@ -562,7 +593,7 @@ def train():
         learning_rate=training_args.learning_rate,
         save_strategy=training_args.save_strategy,
         save_steps=training_args.save_steps,
-        eval_strategy=training_args.evaluation_strategy,
+        eval_strategy=training_args.eval_strategy,
         eval_steps=training_args.eval_steps,
         load_best_model_at_end=training_args.load_best_model_at_end,
         report_to=training_args.report_to,
