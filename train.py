@@ -528,6 +528,7 @@ def train():
             use_fast=False,
             trust_remote_code=True,
         )
+        tokenizer.pad_token = tokenizer.eos_token 
 
     else:
         raise NotImplementedError(f"Unknown model type '{model_args.model_name_or_path}' found for model and tokenizer initialization")
