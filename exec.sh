@@ -51,6 +51,7 @@ CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
     --deepspeed ${ROOTDIR}/zero2.json \
     --model_name_or_path meta-llama/Llama-3.2-8B \
     --data_path ${ROOTDIR}/prompt_generation \
+    --attn_implementation flash_attention_2 \
     --device cuda \
     --optim adamw_8bit \
     --bits 8 \
