@@ -329,16 +329,20 @@ class SupervisedDataset(Dataset):
 
         self.table_foldername = os.path.join(self.dataset_folder, "Data", "Preprocessed")
         self.dataset_config = os.path.join(self.dataset_folder, f"{data_folder_name}_config.json")
-        self.dataset = json.load(open(self.dataset_config, "r"))
+        # self.dataset = json.load(open(self.dataset_config, "r"))
 
 
     def __len__(self):
-        return len(self.dataset)
+        return len(json.load(open(self.dataset_config, "r")))
     
 
     def __getitem__(self, idx):
 
-        sample = self.dataset[idx]
+        # sample = self.dataset[idx]
+
+        dataset = json.load(open(self.dataset_config, "r"))
+        sample = dataset[idx]
+
         table_filename = sample["table"]
         table_filepath = os.path.join(self.table_foldername, table_filename)
 
@@ -517,6 +521,7 @@ def train():
             model_args.model_name_or_path,
             # config=config,
             use_cache=False,
+            attn_implementation=model_args.attn_implementation,
             **bnb_model_from_pretrained_args
         )
 
