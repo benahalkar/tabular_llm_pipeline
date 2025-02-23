@@ -41,6 +41,9 @@ PYTHON_PATH=${VENVROOT}/bin/python
 # activate virtual environment
 source ${VENVROOT}/bin/activate
 
+# explicitly set the number of visible devices
+CUDA_VISIBLE_DEVICES=0,1,2,3
+
 # Launch script
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
 # CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
@@ -69,9 +72,8 @@ CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
     --save_strategy "steps" \
     --save_steps 100 \
     --save_total_limit 1 \
-    --learning_rate 2e-5 \
     --weight_decay 0.03 \
-    --warmup_ratio 0.75 \
+    --warmup_ratio 0.05 \
     --lr_scheduler_type "linear" \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
