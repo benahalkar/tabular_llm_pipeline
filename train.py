@@ -143,6 +143,28 @@ def just_logging(message):
         f.close()
 
 
+def count_parameters(model):
+    total_params = sum(p.numel() for p in model.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return total_params, trainable_params
+
+
+def estimate_model_size(model):
+    param_size = 0
+    for param in model.parameters():
+        param_size += param.nelement() * param.element_size()
+    buffer_size = 0
+    for buffer in model.buffers():
+        buffer_size += buffer.nelement() * buffer.element_size()
+
+    total_size_bytes = param_size + buffer_size
+    # Convert to MB or GB
+    total_size_mb = total_size_bytes / (1024**2)
+    total_size_gb = total_size_bytes / (1024**3)
+
+    return total_size_mb, total_size_gb
+
+
 class MemoryMonitorCallback(TrainerCallback):
     def __init__(self, print_interval=1):
         self.print_interval = print_interval
@@ -616,6 +638,18 @@ def train():
         **data_module,
     )
     trainer.add_callback(MemoryMonitorCallback)
+
+    # get total number of model parameters
+    total_params, trainable_params = count_parameters(model)
+    just_logging(f"Total parameters: {total_params}")
+    just_logging(f"Trainable parameters: {trainable_params}")
+    rank0_print(f"Total parameters: {total_params}")
+    rank0_print(f"Trainable parameters: {trainable_params}")
+
+    # get total memory footprint of model
+    model_size_mb, model_size_gb = estimate_model_size(model)
+    just_logging(f"Estimated model size: {model_size_mb:.2f} MB or {model_size_gb:.2f} GB")
+    rank0_print(f"Estimated model size: {model_size_mb:.2f} MB or {model_size_gb:.2f} GB")    
     
     print_gpu_memory("After loading model")
 
