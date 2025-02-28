@@ -1,4 +1,6 @@
 import os
+import sys
+import time
 import json
 import pytz
 import torch
@@ -9,7 +11,7 @@ import pandas as pd
 from copy import deepcopy
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Sequence, List
+from typing import Dict, Optional, List
 
 from accelerate import Accelerator
 from torch.utils.data import Dataset
@@ -17,7 +19,6 @@ from transformers import (
     AutoConfig,
     AutoTokenizer,
     AutoModelForCausalLM,
-    BitsAndBytesConfig,
     TrainingArguments,
     Trainer,
     HfArgumentParser,
@@ -847,7 +848,20 @@ def train():
     just_logging(f"Estimated model size: {model_size_mb:.2f} MB or {model_size_gb:.2f} GB")
     rank0_print(f"Estimated model size: {model_size_mb:.2f} MB or {model_size_gb:.2f} GB")
 
+    # log optimizer size information
+    optimizer_size_mb = sys.getsizeof(trainer.optimizer) / (1024**2)
+    just_logging(f"Estimated optimizer size: {optimizer_size_mb:.2f} MB")
+    rank0_print(f"Estimated optimizer size: {optimizer_size_mb:.2f} MB")
+
     print_gpu_memory("After loading model")
+
+    DELAY_TIMER = 120
+    start_time = time.monotonic()
+    while time.monotonic() - start_time < DELAY_TIMER:
+        time.sleep(20)
+
+    sys.exit(0)
+    
 
     # Train the model
     rank0_declare("Trainer started")
