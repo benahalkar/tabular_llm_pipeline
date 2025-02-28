@@ -855,7 +855,7 @@ def train():
 
     print_gpu_memory("After loading model")
 
-    DELAY_TIMER = 120
+    DELAY_TIMER = 300
     start_time = time.monotonic()
     while time.monotonic() - start_time < DELAY_TIMER:
         time.sleep(20)
