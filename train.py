@@ -284,6 +284,20 @@ def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return total_params, trainable_params
 
+def analyze_model_datatypes(model):
+    datatype_counts = {}
+    
+    for param in model.parameters():
+        dtype = str(param.dtype)
+        num_params = param.numel()
+        
+        if dtype not in datatype_counts:
+            datatype_counts[dtype] = 0
+        datatype_counts[dtype] += num_params
+
+    return datatype_counts
+
+
 def estimate_model_size(model: torch.nn.Module) -> tuple[float, float]:
     """
     Estimates the size of a PyTorch model in MB and GB.
@@ -835,6 +849,13 @@ def train():
 
     # Add memory monitor callback
     trainer.add_callback(MemoryMonitorCallback)
+
+    # Log model datatype counts
+    just_logging("Datatypes and parameter counts for the model")
+    model_dtype_counts = analyze_model_datatypes()
+    for dtype, count in model_dtype_counts.items():
+        just_logging(f"{dtype}: {count:,} parameters")
+
 
     # Log model parameter information
     total_params, trainable_params = count_parameters(model)
