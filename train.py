@@ -44,30 +44,6 @@ from constants import (
 accelerator = Accelerator()
 local_rank = None  # Define local_rank globally
 
-def rank0_print(msg: str) -> None:
-    """
-    Prints a message only on the rank 0 process.
-
-    Args:
-        msg (str): The message to print.
-    """
-    if local_rank == 0:
-        print(msg)
-
-def rank0_declare(msg: str) -> None:
-    """
-    Prints a declarative message only on the rank 0 process.
-
-    Args:
-        msg (str): The message to print.
-    """
-    if local_rank == 0:
-        print("")
-        print("#"*40)
-        print(" "*10, msg.upper())
-        print("#"*40)
-        print("")
-
 @dataclass
 class CustomModelArguments:
     """
@@ -173,6 +149,41 @@ HOME_DIR = os.path.dirname(os.path.abspath(__file__))
 if accelerator.is_main_process:
     wandb.init(project="finetuning_runs")
 
+def rank0_print(msg: str) -> None:
+    """
+    Prints a message only on the rank 0 process.
+
+    Args:
+        msg (str): The message to print.
+    """
+    if local_rank == 0:
+        print(msg)
+
+def rank0_declare(msg: str) -> None:
+    """
+    Prints a declarative message only on the rank 0 process.
+
+    Args:
+        msg (str): The message to print.
+    """
+    if local_rank == 0:
+        print("")
+        print("#"*40)
+        print(" "*10, msg.upper())
+        print("#"*40)
+        print("")
+
+def get_timestamp() -> str:
+    """
+    Generates the current timestamp for logging.
+
+    Returns:
+        str: The formatted timestamp.
+    """
+    est_timezone = pytz.timezone('US/Eastern')
+    current_est_time = datetime.now(est_timezone).strftime("%H:%M:%S")
+    return f"Timestamp logged is {current_est_time}"
+
 def get_filename() -> str:
     """
     Generates a unique filename for logging based on the current timestamp.
@@ -266,9 +277,14 @@ def just_logging(message: str) -> None:
     Args:
         message (str): The message to log.
     """
-    with open(FILENAME, "a") as f:
-        f.write(message + "\n")
-    f.close()
+    if local_rank == 0:
+        with open(FILENAME, "a") as f:
+            timestamp = get_timestamp()
+            f.write(timestamp, "\n")
+            f.write('-'*len(timestamp), "\n")
+            f.write(message + "\n")
+            f.write("\n")
+        f.close()
 
 def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
     """
@@ -280,11 +296,37 @@ def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
     Returns:
         tuple[int, int]: A tuple containing the total and trainable parameter counts.
     """
-    total_params = sum(p.numel() for p in model.parameters())
-    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # total_params = sum(p.numel() for p in model.parameters())
+    # trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # return total_params, trainable_params
+
+    total_params, trainable_params = 0, 0
+    
+    for name, param in model.named_parameters():
+        if param is not None:
+            num_params = param.numel()
+            if 'lora' in name or any(peft_module in name for peft_module in ['adapter', 'prefix', 'prompt']):
+                trainable_params += num_params
+            if hasattr(param, 'quant_state'):
+                num_params = param.quant_state.num_elements()
+            total_params += num_params
+    
     return total_params, trainable_params
 
-def analyze_model_datatypes(model):
+def analyze_model_datatypes(model: torch.nn.Module) -> Dict[str, int]:
+    """
+    Analyzes the datatypes of parameters in a PyTorch model.
+
+    This function iterates through all parameters of the given model and counts
+    the number of elements (parameters) for each datatype encountered.
+
+    Args:
+        model (torch.nn.Module): The PyTorch model to analyze.
+
+    Returns:
+        Dict[str, int]: A dictionary where keys are datatype strings (e.g., 'torch.float32')
+        and values are the total number of parameters of that datatype.
+    """
     datatype_counts = {}
     
     for param in model.parameters():
@@ -540,7 +582,7 @@ class SupervisedDataset(Dataset):
         self.dataset_folder = os.path.join(HOME_DIR, data_args.data_path)
         self.tokenizer = tokenizer
         data_folder_name = "train" if train else "eval"
-        self.table_foldername = os.path.join(self.dataset_folder, "Data", "Preprocessed")
+        self.table_foldername = os.path.join(self.dataset_folder, "Data", "Processed")
         self.dataset_config = os.path.join(self.dataset_folder, f"{data_folder_name}_config.json")
         self.dataset = json.load(open(self.dataset_config, "r"))
 
@@ -852,15 +894,14 @@ def train():
 
     # Log model datatype counts
     just_logging("Datatypes and parameter counts for the model")
-    model_dtype_counts = analyze_model_datatypes()
+    model_dtype_counts = analyze_model_datatypes(model)
     for dtype, count in model_dtype_counts.items():
         just_logging(f"{dtype}: {count:,} parameters")
 
-
     # Log model parameter information
     total_params, trainable_params = count_parameters(model)
-    just_logging(f"Total parameters: {total_params}")
-    just_logging(f"Trainable parameters: {trainable_params}")
+    just_logging(f"Total parameters: {total_params:,}")
+    just_logging(f"Trainable parameters: {trainable_params:,}")
     rank0_print(f"Total parameters: {total_params}")
     rank0_print(f"Trainable parameters: {trainable_params}")
 
@@ -877,6 +918,7 @@ def train():
     print_gpu_memory("After loading model")
 
     DELAY_TIMER = 300
+    just_logging("Going into the while loop")
     start_time = time.monotonic()
     while time.monotonic() - start_time < DELAY_TIMER:
         time.sleep(20)
@@ -887,6 +929,10 @@ def train():
     # Train the model
     rank0_declare("Trainer started")
     trainer.train()
+
+    # trainer.save_state()
+
+    # model.config.use_cache = True
 
 if __name__ == "__main__":
     train()
