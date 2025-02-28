@@ -46,8 +46,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3
 
 # Launch script
 # CUDA_LAUNCH_BLOCKING=1 CUDA_VISIBLE_DEVICES=0,1,2,3 ${PYTHON_PATH} ${FILE_PATH}/train.py \
-# CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
-CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
+# CUDA_LAUNCH_BLOCKING=1 accelerate launch ${ROOTDIR}/train.py \
+CUDA_LAUNCH_BLOCKING=1 deepspeed ${FILE_PATH}/train.py \
     --deepspeed ${ROOTDIR}/zero2.json \
     --model_name_or_path meta-llama/Llama-3.2-8B \
     --data_path ${ROOTDIR}/prompt_generation \
