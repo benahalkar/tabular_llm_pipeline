@@ -308,7 +308,8 @@ def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
             if 'lora' in name or any(peft_module in name for peft_module in ['adapter', 'prefix', 'prompt']):
                 trainable_params += num_params
             if hasattr(param, 'quant_state'):
-                num_params = param.quant_state.num_elements()
+                # num_params = param.quant_state.num_elements()
+                num_params = param.shape.numel()
             total_params += num_params
     
     return total_params, trainable_params
