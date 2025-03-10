@@ -40,6 +40,9 @@ from constants import (
     ROW_SEPARATOR,
 )
 
+# supress warnings
+warnings.filterwarnings("ignore")
+
 # Initialize accelerator
 accelerator = Accelerator()
 local_rank = None  # Define local_rank globally
@@ -182,7 +185,7 @@ def get_timestamp() -> str:
     """
     est_timezone = pytz.timezone('US/Eastern')
     current_est_time = datetime.now(est_timezone).strftime("%H:%M:%S")
-    return f"Timestamp logged is {current_est_time}"
+    return f"Timestamp: {current_est_time}"
 
 def get_filename() -> str:
     """
@@ -280,10 +283,10 @@ def just_logging(message: str) -> None:
     if local_rank == 0:
         with open(FILENAME, "a") as f:
             timestamp = get_timestamp()
-            f.write(timestamp, "\n")
-            f.write('-'*len(timestamp), "\n")
+            f.write(timestamp + "\n")
+            f.write('-'*len(timestamp) + "\n")
             f.write(message + "\n")
-            f.write("\n")
+            f.write("\n\n")
         f.close()
 
 def count_parameters(model: torch.nn.Module) -> tuple[int, int]:
@@ -872,8 +875,8 @@ def train():
         eval_steps=training_args.eval_steps,
         load_best_model_at_end=training_args.load_best_model_at_end,
         report_to=training_args.report_to,
-        gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={'use_reentrant': False},
+        gradient_checkpointing=False,
+        gradient_checkpointing_kwargs={'use_reentrant': True},
         deepspeed=training_args.deepspeed,
     )
     rank0_declare("Training args defined")
@@ -898,6 +901,17 @@ def train():
     model_dtype_counts = analyze_model_datatypes(model)
     for dtype, count in model_dtype_counts.items():
         just_logging(f"{dtype}: {count:,} parameters")
+
+    # # Log anticipated Distributed type
+    # if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+    #     just_logging("Using DDP")
+    # else:
+    #     just_logging("Not using DDP")
+
+    # if isinstance(model, torch.distributed.fsdp.FullyShardedDataParallel):
+    #     just_logging("Using FSDP")
+    # else:
+    #     just_logging("Not using FSDP")
 
     # Log model parameter information
     total_params, trainable_params = count_parameters(model)
