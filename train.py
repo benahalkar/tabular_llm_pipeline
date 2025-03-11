@@ -9,6 +9,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from copy import deepcopy
+import deepspeed.comm as dist
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Dict, Optional, List
@@ -732,7 +733,13 @@ def train():
     )
 
     print_gpu_memory("Before loading model")
-    rank0_print(f"Number of GPUs available - {torch.cuda.device_count()}")
+    num_gpus = torch.cuda.device_count()
+    gpu_names = "\n".join([f"GPU {i}: {torch.cuda.get_device_name(i)}" for i in range(num_gpus)])
+    rank0_print(f"Number of GPUs available - {num_gpus}")
+    rank0_print(f"GPU names\n{gpu_names}")
+    just_logging(f"Number of GPUs available - {num_gpus}")
+    just_logging(f"GPU names\n{gpu_names}")
+
 
     # Configure quantization if specified
     bnb_model_from_pretrained_args = {}
@@ -943,8 +950,15 @@ def train():
 
     # Train the model
     rank0_declare("Trainer started")
-    trainer.train()
 
+    start_time = time.monotonic()
+    trainer.train()
+    total_time = time.monotonic() - start_time
+    just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time/60, 2)} hours")
+
+    # Mention logs after training loop
+    dist.log_summary()
+    
     # trainer.save_state()
 
     # model.config.use_cache = True
