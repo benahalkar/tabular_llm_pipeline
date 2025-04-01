@@ -185,7 +185,7 @@ def get_timestamp() -> str:
         str: The formatted timestamp.
     """
     est_timezone = pytz.timezone('US/Eastern')
-    current_est_time = datetime.now(est_timezone).strftime("%H:%M:%S")
+    current_est_time = datetime.now(est_timezone).strftime("%d-%b %Y %H:%M:%S-%f")
     return f"Timestamp: {current_est_time}"
 
 def get_filename() -> str:
@@ -204,8 +204,28 @@ def get_filename() -> str:
 
     return os.path.join(log_directory, f"logs_{current_est_time}.txt")
 
+def get_profilename() -> str:
+    """
+    Generates a unique folder for tensor logging based on the current timestamp.
+
+    Returns:
+        str: The directory for the tensor log file.
+    """
+    est_timezone = pytz.timezone('US/Eastern')
+    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M%S")
+    log_directory = os.path.join(HOME_DIR, "training_tensors")
+
+    if not os.path.exists(log_directory):
+        os.makedirs(log_directory)
+
+    sublog_directory = os.path.join(log_directory, current_est_time)
+    os.makedirs(sublog_directory)
+
+    return sublog_directory
+
 # Define the log filename
 FILENAME = get_filename()
+PROFILE_FILENAME = get_profilename()
 
 def set_seed(seed: int = 42) -> None:
     """
@@ -273,6 +293,21 @@ def print_gpu_memory(message: str) -> None:
             f.write(f"GPU memory allocated: {torch.cuda.memory_allocated() / 1024**2:.2f} MB\n")
             f.write(f"GPU memory reserved: {torch.cuda.memory_reserved() / 1024**2:.2f} MB\n")
         f.close()
+
+def just_n_logging(message: str) -> None:
+    """
+    Logs a message to the log file.
+
+    Args:
+        message (str): The message to log.
+    """
+    with open(FILENAME, "a") as f:
+        timestamp = get_timestamp()
+        f.write(timestamp + "\n")
+        f.write("-"*len(timestamp) + "\n")
+        f.write("[ RANK " + local_rank + " ]" + message + "\n")
+        f.write("\n\n")
+    f.close()
 
 def just_logging(message: str) -> None:
     """
@@ -682,6 +717,12 @@ class DataCollatorForSupervisedDataset:
         # Create attention mask
         attention_mask = input_ids.ne(self.tokenizer.pad_token_id)
 
+        # get space consumed by these tensors
+        input_ids_space = (input_ids.element_size() * input_ids.nelement()) / 1024 * 1024
+        attn_mask_space = (attention_mask.element_size() * attention_mask.nelement()) / 1024 * 1024
+        labels_space = (labels.element_size() * labels.nelement()) / 1024 * 1024
+        just_n_logging(f" Mem Consumed\ninput_ids - {input_ids_space} MB\nattention_mask - {attn_mask_space} MB\nlabels - {labels_space} MB")
+
         batch = dict(
             input_ids=input_ids,
             labels=labels,
@@ -719,6 +760,9 @@ def train():
     global local_rank  # Access the global local_rank variable
 
     rank0_declare("Training Script Triggered")
+
+    # Start recording memory snapshot history
+    torch.cuda.memory._record_memory_history(max_entries=100000)
 
     # Parse command-line arguments
     parser = HfArgumentParser((CustomModelArguments, CustomDataArguments, CustomTrainingArguments))
@@ -952,9 +996,15 @@ def train():
     rank0_declare("Trainer started")
 
     start_time = time.monotonic()
-    trainer.train()
+    try:
+        trainer.train()
+    except Exception as e:
+        just_n_logging("ERROR "*30)
+        just_n_logging(f"Issue with RANK - {local_rank}")
+        just_n_logging(f"Error Message - {e}")
+
     total_time = time.monotonic() - start_time
-    just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time/60, 2)} hours")
+    just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
 
     # Mention logs after training loop
     dist.log_summary()
@@ -962,6 +1012,10 @@ def train():
     # trainer.save_state()
 
     # model.config.use_cache = True
+
+    # Dump memory snapshot history to a file and stop recording
+    torch.cuda.memory._dump_snapshot(os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl"))
+    torch.cuda.memory._record_memory_history(enabled=None)
 
 if __name__ == "__main__":
     train()
