@@ -196,7 +196,7 @@ def get_filename() -> str:
         str: The filepath for the log file.
     """
     est_timezone = pytz.timezone('US/Eastern')
-    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M%S")
+    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M")
     log_directory = os.path.join(HOME_DIR, "training_logs")
 
     if not os.path.exists(log_directory):
@@ -212,7 +212,7 @@ def get_profilename() -> str:
         str: The directory for the tensor log file.
     """
     est_timezone = pytz.timezone('US/Eastern')
-    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M%S")
+    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M")
     log_directory = os.path.join(HOME_DIR, "training_tensors")
 
     if not os.path.exists(log_directory):
@@ -999,23 +999,23 @@ def train():
     try:
         trainer.train()
     except Exception as e:
-        just_n_logging("ERROR "*30)
-        just_n_logging(f"Issue with RANK - {local_rank}")
-        just_n_logging(f"Error Message - {e}")
+        just_n_logging(f"{'ERROR '*30}\nIssue with RANK - {local_rank}\nError Message - {e}")
 
-    total_time = time.monotonic() - start_time
-    just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
+        total_time = time.monotonic() - start_time
+        just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
 
-    # Mention logs after training loop
-    dist.log_summary()
-    
-    # trainer.save_state()
+        # Mention logs after training loop
+        dist.log_summary()
+        
+        # trainer.save_state()
 
-    # model.config.use_cache = True
+        # model.config.use_cache = True
 
-    # Dump memory snapshot history to a file and stop recording
-    torch.cuda.memory._dump_snapshot(os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl"))
-    torch.cuda.memory._record_memory_history(enabled=None)
+        # Dump memory snapshot history to a file and stop recording
+        torch.cuda.memory._dump_snapshot(os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl"))
+        torch.cuda.memory._record_memory_history(enabled=None)
+
+        sys.exit(0)
 
 if __name__ == "__main__":
     train()
