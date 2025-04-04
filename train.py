@@ -999,10 +999,10 @@ def train():
     try:
         trainer.train()
     except Exception as e:
-        just_n_logging(f"{'ERROR '*30}\nIssue with RANK - {local_rank}\nError Message - {e}")
+        just_n_logging(f"{'ERROR '*30}\nIssue with RANK - {local_rank}\nError Message - {e}\n")
 
         total_time = time.monotonic() - start_time
-        just_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
+        just_n_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
 
         # Mention logs after training loop
         dist.log_summary()
@@ -1012,10 +1012,12 @@ def train():
         # model.config.use_cache = True
 
         # Dump memory snapshot history to a file and stop recording
-        torch.cuda.memory._dump_snapshot(os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl"))
+        tensor_filename = os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl")
+        torch.cuda.memory._dump_snapshot(tensor_filename)
         torch.cuda.memory._record_memory_history(enabled=None)
 
-        sys.exit(0)
+        just_n_logging(f"Saving tensors to {tensor_filename}, exiting now!")
+        sys.exit(1)
 
 if __name__ == "__main__":
     train()
