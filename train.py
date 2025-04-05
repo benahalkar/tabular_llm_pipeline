@@ -212,14 +212,16 @@ def get_profilename() -> str:
         str: The directory for the tensor log file.
     """
     est_timezone = pytz.timezone('US/Eastern')
-    current_est_time = datetime.now(est_timezone).strftime("%Y%m%d_%H%M")
     log_directory = os.path.join(HOME_DIR, "training_tensors")
 
     if not os.path.exists(log_directory):
         os.makedirs(log_directory)
 
+    now = datetime.now(est_timezone)
+    current_est_time = now.replace(minute=(now//10)*10, second=0, microsecond=0).strftime("%Y%m%d_%H%M")
     sublog_directory = os.path.join(log_directory, current_est_time)
-    os.makedirs(sublog_directory)
+    if not os.path.exists(sublog_directory):
+        os.makedirs(sublog_directory)
 
     return sublog_directory
 
@@ -305,7 +307,7 @@ def just_n_logging(message: str) -> None:
         timestamp = get_timestamp()
         f.write(timestamp + "\n")
         f.write("-"*len(timestamp) + "\n")
-        f.write("[ RANK " + local_rank + " ]" + message + "\n")
+        f.write("[ RANK " + str(local_rank) + " ] " + message + "\n")
         f.write("\n\n")
     f.close()
 
@@ -983,15 +985,6 @@ def train():
 
     print_gpu_memory("After loading model")
 
-    DELAY_TIMER = 300
-    just_logging("Going into the while loop")
-    start_time = time.monotonic()
-    while time.monotonic() - start_time < DELAY_TIMER:
-        time.sleep(20)
-
-    sys.exit(0)
-    
-
     # Train the model
     rank0_declare("Trainer started")
 
@@ -1013,10 +1006,11 @@ def train():
 
         # Dump memory snapshot history to a file and stop recording
         tensor_filename = os.path.join(PROFILE_FILENAME, f"profile_{local_rank}.pkl")
+        just_n_logging(f"Saving tensors to {tensor_filename}")
+
         torch.cuda.memory._dump_snapshot(tensor_filename)
         torch.cuda.memory._record_memory_history(enabled=None)
-
-        just_n_logging(f"Saving tensors to {tensor_filename}, exiting now!")
+        just_n_logging("Saved, exiting now!")
         sys.exit(1)
 
 if __name__ == "__main__":
