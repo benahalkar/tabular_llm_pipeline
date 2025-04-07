@@ -878,6 +878,15 @@ def train():
         model = prepare_model_for_kbit_training(model, use_gradient_checkpointing=training_args.gradient_checkpointing)
     rank0_declare("Model prepared for K-bit Training")
 
+    # Add model gradient checkpointing
+    if training_args.gradient_checkpointing:
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
+        else:
+            def make_inputs_require_grad(module, input, output):
+                output.requires_grad_(True)
+            model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
+
     # Configure LoRA if enabled
     if training_args.lora_enable:
         from peft import LoraConfig, get_peft_model
@@ -912,6 +921,21 @@ def train():
 
         model = get_peft_model(model, lora_config)
 
+    # Adjust lora layers for PEFT
+    if training_args.bits in [4, 8]:
+        from peft.tuners.lora import LoraLayer
+        for name, module in model.named_modules():
+            if isinstance(module, LoraLayer):
+                if training_args.bf16:
+                    module = module.to(torch.bfloat16)
+            if 'norm' in name:
+                module = module.to(torch.float32)
+            if 'lm_head' in name or 'embed_tokens' in name:
+                if hasattr(module, 'weight'):
+                    if training_args.bf16 and module.weight.dtype == torch.float32:
+                        module = module.to(torch.bfloat16)
+    rank0_declare("LoRA parameters re-adjusted")
+
     # Configure training arguments
     training_arguments = TrainingArguments(
         output_dir=training_args.output_dir,
@@ -928,7 +952,7 @@ def train():
         eval_steps=training_args.eval_steps,
         load_best_model_at_end=training_args.load_best_model_at_end,
         report_to=training_args.report_to,
-        gradient_checkpointing=False,
+        gradient_checkpointing=training_args.gradient_checkpointing,
         gradient_checkpointing_kwargs={'use_reentrant': True},
         deepspeed=training_args.deepspeed,
     )
@@ -954,17 +978,6 @@ def train():
     model_dtype_counts = analyze_model_datatypes(model)
     for dtype, count in model_dtype_counts.items():
         just_logging(f"{dtype}: {count:,} parameters")
-
-    # # Log anticipated Distributed type
-    # if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-    #     just_logging("Using DDP")
-    # else:
-    #     just_logging("Not using DDP")
-
-    # if isinstance(model, torch.distributed.fsdp.FullyShardedDataParallel):
-    #     just_logging("Using FSDP")
-    # else:
-    #     just_logging("Not using FSDP")
 
     # Log model parameter information
     total_params, trainable_params = count_parameters(model)
