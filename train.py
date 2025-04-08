@@ -145,6 +145,10 @@ class CustomTrainingArguments(TrainingArguments):
         default=None, 
         metadata={"help": "Deepspeed configuration."}
     )
+    use_reentrant: bool = field(
+        default=False, 
+        metadata={"help": "Enable Gradient reentrant on checkpointing."}
+    )
 
 # Define the home directory
 HOME_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -218,7 +222,7 @@ def get_profilename() -> str:
         os.makedirs(log_directory)
 
     now = datetime.now(est_timezone)
-    current_est_time = now.replace(minute=(now//10)*10, second=0, microsecond=0).strftime("%Y%m%d_%H%M")
+    current_est_time = now.replace(minute=(now.minute//10)*10, second=0, microsecond=0).strftime("%Y%m%d_%H%M")
     sublog_directory = os.path.join(log_directory, current_est_time)
     if not os.path.exists(sublog_directory):
         os.makedirs(sublog_directory)
@@ -226,8 +230,7 @@ def get_profilename() -> str:
     return sublog_directory
 
 # Define the log filename
-FILENAME = get_filename()
-PROFILE_FILENAME = get_profilename()
+FILENAME, PROFILE_FILENAME = get_filename(), get_profilename()
 
 def set_seed(seed: int = 42) -> None:
     """
@@ -720,9 +723,9 @@ class DataCollatorForSupervisedDataset:
         attention_mask = input_ids.ne(self.tokenizer.pad_token_id)
 
         # get space consumed by these tensors
-        input_ids_space = (input_ids.element_size() * input_ids.nelement()) / 1024 * 1024
-        attn_mask_space = (attention_mask.element_size() * attention_mask.nelement()) / 1024 * 1024
-        labels_space = (labels.element_size() * labels.nelement()) / 1024 * 1024
+        input_ids_space = (input_ids.element_size() * input_ids.nelement()) / (1024 ** 2)
+        attn_mask_space = (attention_mask.element_size() * attention_mask.nelement()) / (1024 ** 2)
+        labels_space = (labels.element_size() * labels.nelement()) / (1024 ** 2)
         just_n_logging(f" Mem Consumed\ninput_ids - {input_ids_space} MB\nattention_mask - {attn_mask_space} MB\nlabels - {labels_space} MB")
 
         batch = dict(
@@ -904,7 +907,8 @@ def train():
             lora_config = LoraConfig(
                 r=training_args.lora_r,
                 lora_alpha=training_args.lora_alpha,
-                target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head"],  # Adjust these!
+                # target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj", "lm_head"],  # Adjust these!
+                target_modules=["q_proj", "k_proj", "v_proj"],
                 lora_dropout=training_args.lora_dropout,
                 bias=training_args.lora_bias,
                 task_type="CAUSAL_LM",
@@ -953,7 +957,7 @@ def train():
         load_best_model_at_end=training_args.load_best_model_at_end,
         report_to=training_args.report_to,
         gradient_checkpointing=training_args.gradient_checkpointing,
-        gradient_checkpointing_kwargs={'use_reentrant': True},
+        gradient_checkpointing_kwargs={'use_reentrant': training_args.use_reentrant},
         deepspeed=training_args.deepspeed,
     )
     rank0_declare("Training args defined")
