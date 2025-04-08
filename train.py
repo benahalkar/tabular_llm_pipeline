@@ -1015,7 +1015,7 @@ def train():
         just_n_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
 
         # Mention logs after training loop
-        dist.log_summary()
+        # dist.log_summary()
         
         # trainer.save_state()
 
