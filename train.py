@@ -6,6 +6,7 @@ import pytz
 import torch
 import wandb
 import warnings
+import traceback
 import numpy as np
 import pandas as pd
 from copy import deepcopy
@@ -58,7 +59,7 @@ class CustomModelArguments:
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"},
     )
     attn_implementation: str = field(
-        default=None,
+        default="sdpa",
         metadata={"help": "Attention implementation to use."},
     )
 
@@ -1011,6 +1012,16 @@ def train():
     except Exception as e:
         just_n_logging(f"{'ERROR '*30}\nIssue with RANK - {local_rank}\nError Message - {e}\n")
 
+        with open(FILENAME, "a") as f:
+            timestamp = get_timestamp()
+            f.write(timestamp + "\n")
+            f.write("-"*len(timestamp) + "\n")
+            f.write("[ RANK " + str(local_rank) + " ]")
+            traceback.print_exc(file=f)
+            f.write("\n\n")
+        f.close()
+
+    finally:
         total_time = time.monotonic() - start_time
         just_n_logging(f"Time taken to finish training - {total_time} s OR {total_time // 60} mins OR {round(total_time / (60 * 60), 2)} hours")
 
